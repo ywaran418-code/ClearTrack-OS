@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payroll & Leave System - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-body">
+    <div class="login-card">
+        <h2 style="color: #333; margin-bottom: 20px;">System Login</h2>
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username (hr1, tl1, emp1)" required>
+            <input type="password" name="password" placeholder="Password (123)" required>
+            <button type="submit" class="btn btn-blue" style="width: 100%; padding: 12px; margin-top: 15px; font-size: 16px;">Log In</button>
+        </form>
+    </div>
+</body>
+</html>

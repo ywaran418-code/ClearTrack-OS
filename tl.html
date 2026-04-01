@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TL Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>.chart-container { width: 100%; height: 300px; margin: 0 auto; }</style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h2 style="margin:0; color: #333;">Dashboard: {{ user['full_name'] }}</h2>
+            <p style="margin:5px 0 0 0; color: #777;">Your Team: {{ employees|length }} Employees</p>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <a href="/profile" class="btn btn-blue">Edit Profile</a>
+            <a href="/logout" class="logout-btn">Log Out</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#007bff; margin-top:0;">📊 Team Growth & Task Completion</h3>
+        <div class="chart-container">
+            <canvas id="tlChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#007bff; margin-top:0;">📝 Assign Task</h3>
+        <form action="/assign_task" method="POST">
+            <input type="text" name="title" placeholder="Task Title..." required style="width: 300px;">
+            <select name="assigned_to" required>
+                {% for emp in employees %}
+                    <option value="{{ emp['username'] }}">{{ emp['full_name'] }} ({{ emp['username'] }})</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-blue">Assign</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#fd7e14; margin-top:0;">🔍 Review & History of Tasks</h3>
+        <table>
+            <tr><th>Task</th><th>Employee</th><th>Proof / Bonus</th><th>Action / Remark</th></tr>
+            {% for task in tasks %}
+                {% if task['status'] == 'Submitted' %}
+                <tr>
+                    <td>{{ task['title'] }}</td>
+                    <td>{{ task['assigned_to'] }}</td>
+                    <td><a href="{{ url_for('static', filename='uploads/' + task['proof_file']) }}" target="_blank">View File</a></td>
+                    <td>
+                        <form action="/task_action/{{ task['id'] }}/approve" method="POST" style="display:inline;">
+                            <input type="text" name="remark" placeholder="Good..." required style="width:100px;">
+                            <button type="submit" class="btn btn-green">✔</button>
+                        </form>
+                        <form action="/task_action/{{ task['id'] }}/reject" method="POST" style="display:inline;">
+                            <input type="text" name="remark" placeholder="Reject..." required style="width:100px;">
+                            <button type="submit" class="btn btn-red">✖</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            {% for task in task_history %}
+                <tr style="background:#f9f9f9;">
+                    <td style="color:gray;">{{ task['title'] }}</td>
+                    <td style="color:gray;">{{ task['assigned_to'] }}</td>
+                    <td style="color:green; font-weight:bold;">+ ₹{{ task['bonus_amount'] }}</td>
+                    <td style="color:gray;">{{ task['tl_remark'] }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#6f42c1; margin-top:0;">🗓 Review & History of Leaves</h3>
+        <table>
+            <tr><th>Employee</th><th>Date</th><th>Type</th><th>Reason</th><th>Status / Action</th></tr>
+            {% for leave in leave_requests %}
+            <tr>
+                <td>{{ leave['username'] }}</td>
+                <td>{{ leave['leave_date'] }}</td>
+                <td>{{ leave['leave_type'] }}</td>
+                <td>{{ leave['reason'] }}</td>
+                <td>
+                    <form action="/tl_leave_action/{{ leave['id'] }}/approve" method="POST" style="display:inline;">
+                        <input type="hidden" name="msg" value="Forwarded to HR">
+                        <button type="submit" class="btn btn-green">Fwd HR</button>
+                    </form>
+                    <form action="/tl_leave_action/{{ leave['id'] }}/reject" method="POST" style="display:inline;">
+                        <input type="text" name="msg" placeholder="Remark..." required style="width:80px;">
+                        <button type="submit" class="btn btn-red">Reject</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            {% for leave in leave_history %}
+            <tr style="background:#f9f9f9;">
+                <td style="color:gray;">{{ leave['username'] }}</td>
+                <td style="color:gray;">{{ leave['leave_date'] }}</td>
+                <td style="color:gray;">{{ leave['leave_type'] }}</td>
+                <td style="color:gray;">{{ leave['reason'] }}</td>
+                <td style="color:gray;"><strong>{{ leave['status'] }}</strong> ({{ leave['tl_message'] }})</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="card" style="background: #fff3cd; border: 1px solid #ffeeba;">
+        <h3 style="color:#856404; margin-top:0;">📈 Team Progress Overview</h3>
+        <table>
+            <tr><th>Employee Name</th><th>Username</th><th>Tasks Completed</th><th>Progress Bar</th></tr>
+            {% for stat in emp_stats %}
+            <tr>
+                <td>{{ stat['name'] }}</td>
+                <td>{{ stat['username'] }}</td>
+                <td><strong>{{ stat['done'] }} / {{ stat['target'] }}</strong></td>
+                <td>
+                    <div style="background:#ddd; width:100%; border-radius:10px; height:10px;">
+                        <div style="background:green; width:{{ (stat['done']/stat['target'])*100 }}%; height:100%; border-radius:10px;"></div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <script>
+        // Initialize TL Chart
+        new Chart(document.getElementById('tlChart'), {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels | safe }},
+                datasets: [{ 
+                    label: 'Completed Tasks per Employee', 
+                    data: {{ chart_data | safe }}, 
+                    backgroundColor: '#007bff' 
+                }]
+            },
+            options: { maintainAspectRatio: false }
+        });
+    </script>
+</body>
+</html>
